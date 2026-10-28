@@ -67,7 +67,7 @@ export function link(rf, a, b) {
  * @param line RF-Linie (mit rf und Geräten)
  * @param from { device: id } oder { coupler: true } für den Medienkoppler
  * @param couplerOn ob der Medienkoppler eingeschaltet ist
- * @returns {{ waves, reached: Set, coupler: boolean }}
+ * @returns {{ waves, reached: Set, parent: Map, coupler: boolean }}
  *   waves: [{ from, pos, range, level, links: [{ to, pos, ok, dist, eff, hits }] }]
  */
 export function propagate(line, from, couplerOn = true) {
@@ -80,6 +80,7 @@ export function propagate(line, from, couplerOn = true) {
   if (!start) return { waves: [], reached: new Set(), coupler: false };
 
   const reached = new Set([key(start.ref)]);
+  const parent = new Map(); // wer hat wen zuerst erreicht – auf diesem Weg läuft die Quittung zurück
   const repeated = new Set();
   const waves = [];
   let front = [{ node: start, level: 0 }];
@@ -96,6 +97,7 @@ export function propagate(line, from, couplerOn = true) {
         wave.links.push({ to: n.ref, pos: n.pos, ok, dist: l.dist, eff: l.eff, hits: l.hits, deaf: !listens, inRange: l.eff <= range });
         if (ok && !reached.has(key(n.ref))) {
           reached.add(key(n.ref));
+          parent.set(key(n.ref), node.ref);
           // Repeater (Netzgeräte mit Weiterleitung) senden einmal neu
           if (!n.mk && n.d.repeat && n.d.power !== 'battery' && !repeated.has(n.d.id)) {
             repeated.add(n.d.id);
@@ -107,7 +109,7 @@ export function propagate(line, from, couplerOn = true) {
     }
     front = next;
   }
-  return { waves, reached, coupler: reached.has('mk') };
+  return { waves, reached, parent, coupler: reached.has('mk') };
 }
 
 export const key = (ref) => (ref.coupler ? 'mk' : ref.device);

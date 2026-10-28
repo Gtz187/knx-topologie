@@ -240,9 +240,26 @@ export function simulate(p, t) {
       if (!quittung) { tDone = tAfter; break; }
       if (ackers.length && rfAck) {
         // Fast-Ack: jeder Empfänger antwortet in seinem eigenen Zeitschlitz
-        ackers.forEach((a, i) => events.push({ kind: 'ack', t: tAfter + i * T.slot, dur: T.ack, busId: bus.id, from: [a], to: cur.from }));
-        log.push({ level: 'ok', text: `${busName(bus)}: ${ackers.length} Fast-Ack${ackers.length > 1 ? 's' : ''} in eigenen Zeitschlitzen an ${nameOf(cur.from)}.`, ref: cur.from.device || cur.from.coupler, t: tAfter });
-        tDone = tAfter + (ackers.length - 1) * T.slot + T.ack;
+        // Die Quittung nimmt denselben Funkweg zurück – über Repeater, nicht durch Beton
+        const lcId = bus.line.noCoupler ? null : bus.line.coupler.id;
+        const hopsOf = (a) => {
+          const hops = [];
+          for (let r = radio.parent.get(rfKey(a)); r && rfKey(r) !== rfKey(cur.from); r = radio.parent.get(rfKey(r))) {
+            hops.push(r.coupler ? { coupler: lcId, side: 'down' } : r);
+          }
+          return hops;
+        };
+        let longest = T.ack;
+        const relayed = [];
+        ackers.forEach((a, i) => {
+          const via = hopsOf(a);
+          const dur = T.ack * (via.length + 1);
+          longest = Math.max(longest, i * T.slot + dur);
+          events.push({ kind: 'ack', t: tAfter + i * T.slot, dur, busId: bus.id, from: [a], to: cur.from, via });
+          if (via.length) relayed.push({ level: 'info', text: `Quittung von ${nameOf(a)} läuft über ${via.map(nameOf).join(', ')} zurück.`, ref: a.device || a.coupler, t: tAfter + i * T.slot });
+        });
+        log.push({ level: 'ok', text: `${busName(bus)}: ${ackers.length} Fast-Ack${ackers.length > 1 ? 's' : ''} in eigenen Zeitschlitzen an ${nameOf(cur.from)}.`, ref: cur.from.device || cur.from.coupler, t: tAfter }, ...relayed);
+        tDone = tAfter + longest;
         break;
       }
       if (ackers.length) {

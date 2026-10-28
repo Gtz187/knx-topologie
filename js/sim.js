@@ -92,7 +92,12 @@ export function animate(svg, lay, result, { secs = 1.2, onDone } = {}) {
     }
     if (ev.kind === 'ack') {
       for (const from of ev.from) {
-        const pts = route(lay, ev.busId, from, ev.to);
+        // Funk-Quittung über Repeater: Stück für Stück zurück
+        const hops = [from, ...(ev.via || []), ev.to];
+        const pts = hops.slice(1).reduce((acc, h, i) => {
+          const seg = acc && route(lay, ev.busId, hops[i], h);
+          return seg ? [...acc, ...(acc.length ? seg.slice(1) : seg)] : null;
+        }, []);
         if (pts) tracks.push({ pts, t0: ev.t * secs, dur: ev.dur * secs, color: COLORS.pass, r: 3.6, ack: true });
       }
     }

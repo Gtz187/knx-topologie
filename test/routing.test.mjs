@@ -135,3 +135,19 @@ test('Funk: Wand aus Beton blockt, Repeater sendet weiter', async () => {
   r = simulate(p, { senderId: t1.id, type: 'group', ga: '1/0/1', rc: 6 });
   assert.equal(r.receivers.length, 0, 'Beton blockt');
 });
+
+test('RF-Quittung läuft über den Repeater zurück, nicht durch Beton', async () => {
+  const { link } = await import('../js/rf.js');
+  const p = TEMPLATES.rf.build();
+  const line = p.areas[0].lines[0];
+  line.rfAck = true;
+  const devs = line.segments.flatMap((s) => s.devices);
+  const dimm = devs.find((d) => /Dimm/.test(d.name));
+  const sender = devs.find((d) => d.sends?.some((g) => dimm.listens.includes(g)));
+  const r = simulate(p, { senderId: sender.id, type: 'group', ga: dimm.listens[0] });
+  const ack = r.events.find((e) => e.kind === 'ack' && e.from[0].device === dimm.id);
+  assert.ok(ack, 'Dimmaktor quittiert');
+  const pts = [dimm, ...ack.via.map((v) => devs.find((d) => d.id === v.device)), sender].map((d) => d.pos);
+  assert.ok(ack.via.length >= 1, 'über Repeater');
+  for (let i = 1; i < pts.length; i++) assert.ok(!link(line.rf, pts[i - 1], pts[i]).hits.some((h) => h.kind === 'concrete'));
+});
