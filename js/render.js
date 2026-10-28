@@ -6,7 +6,7 @@ import { G } from './layout.js';
 export const COLORS = {
   paper: '#EDF1EE', grid: '#DDE4DF', gridMajor: '#CCD6CF',
   ink: '#22302A', ink2: '#5B6A62', ink3: '#8C9992',
-  tpSheath: '#4F9A53', tpRed: '#D33A2C', tpBlack: '#1E2320',
+  tpSheath: '#4F9A53',
   ip: '#2F6DB3', ipCore: '#A9C8EE', rf: '#7A4CC2',
   module: '#F8F9F7', moduleEdge: '#A3AEA7', coupler: '#2D3934',
   signal: '#F08A24', pass: '#2E9B57', block: '#D33A2C', led: '#FF3B30',
@@ -125,13 +125,7 @@ function busSeg(medium, kind, [x1, y1, x2, y2]) {
   const thick = kind === 'backbone' ? 1.5 : kind === 'main' ? 1.2 : 1;
   const d = `M${x1} ${y1}L${x2} ${y2}`;
   if (medium === 'TP') {
-    // grüner Mantel mit roter und schwarzer Ader wie im echten Buskabel
-    const horiz = y1 === y2;
-    const o = 1.7 * thick;
-    const off = (s) => (horiz ? `M${x1} ${y1 + s}L${x2} ${y2 + s}` : `M${x1 + s} ${y1}L${x2 + s} ${y2}`);
-    return `<path d="${d}" stroke="${C.tpSheath}" stroke-width="${8 * thick}" stroke-linecap="round" opacity=".9"/>`
-      + `<path d="${off(-o)}" stroke="${C.tpRed}" stroke-width="${1.5 * thick}"/>`
-      + `<path d="${off(o)}" stroke="${C.tpBlack}" stroke-width="${1.5 * thick}"/>`;
+    return `<path d="${d}" stroke="${C.tpSheath}" stroke-width="${6 * thick}" stroke-linecap="round"/>`;
   }
   if (medium === 'IP') {
     return `<path d="${d}" stroke="${C.ip}" stroke-width="${6 * thick}" stroke-linecap="round"/>`
