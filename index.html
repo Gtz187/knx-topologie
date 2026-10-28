@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KNX Topologie</title>
+<meta name="description" content="KNX-Topologien zeichnen: TP, IP, RF, Bereichs- und Linienkoppler, automatische physikalische Adressen und Telegramm-Simulation.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232D3934'/%3E%3Cpath d='M6 11h20M6 21h20' stroke='%234F9A53' stroke-width='6' stroke-linecap='round'/%3E%3Cpath d='M6 10h20M6 20h20' stroke='%23D33A2C' stroke-width='1.4'/%3E%3Cpath d='M6 12.2h20M6 22.2h20' stroke='%231E2320' stroke-width='1.4'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 11h26M3 21h26" stroke="#4F9A53" stroke-width="6" stroke-linecap="round"/><path d="M3 10h26M3 20h26" stroke="#D33A2C" stroke-width="1.4"/><path d="M3 12.2h26M3 22.2h26" stroke="#1E2320" stroke-width="1.4"/></svg>
+    <span>KNX Topologie</span>
+  </div>
+  <input id="projectName" class="pname" aria-label="Projektname" spellcheck="false">
+  <div class="tools">
+    <button id="btnUndo" title="Rückgängig (Strg+Z)" aria-label="Rückgängig"><svg viewBox="0 0 20 20"><path d="M7 5 3 9l4 4M3.5 9H12a5 5 0 0 1 0 10h-2"/></svg></button>
+    <button id="btnRedo" title="Wiederholen (Strg+Y)" aria-label="Wiederholen"><svg viewBox="0 0 20 20"><path d="m13 5 4 4-4 4M16.5 9H8a5 5 0 0 0 0 10h2"/></svg></button>
+    <span class="sep"></span>
+    <button id="btnNew">Neu</button>
+    <button id="btnOpen">Öffnen</button>
+    <button id="btnSave">Speichern</button>
+    <div class="menu">
+      <button id="btnExport" aria-haspopup="true" aria-expanded="false">Exportieren</button>
+      <div class="menu-list" id="exportMenu" hidden>
+        <button data-export="svg">Als SVG-Grafik</button>
+        <button data-export="png">Als PNG-Bild</button>
+        <button data-export="csv">Adressliste (CSV)</button>
+        <button data-export="print">Drucken</button>
+        <button data-export="link">Link zum Projekt kopieren</button>
+      </div>
+    </div>
+    <button id="btnHelp" title="Hilfe" aria-label="Hilfe">?</button>
+  </div>
+  <input type="file" id="fileInput" accept=".json,.knxtopo,application/json" hidden>
+</header>
+
+<main class="work">
+  <section class="stage" id="stage" aria-label="Zeichnung">
+    <div class="sheet" id="sheet"></div>
+    <div class="zoom">
+      <button id="zoomOut" aria-label="Verkleinern">−</button>
+      <button id="zoomFit" title="Ganze Zeichnung zeigen">Einpassen</button>
+      <button id="zoomIn" aria-label="Vergrößern">+</button>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </section>
+
+  <aside class="side">
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="props" aria-selected="true">Eigenschaften</button>
+      <button role="tab" data-tab="sim" aria-selected="false">Telegramm</button>
+      <button role="tab" data-tab="check" aria-selected="false">Prüfung <span class="count" id="checkCount"></span></button>
+    </nav>
+    <div class="panel" id="panel-props" role="tabpanel"></div>
+    <div class="panel" id="panel-sim" role="tabpanel" hidden></div>
+    <div class="panel" id="panel-check" role="tabpanel" hidden></div>
+  </aside>
+</main>
+
+<div class="popover" id="addMenu" hidden></div>
+
+<dialog id="dlgNew">
+  <form method="dialog">
+    <h2>Neues Projekt</h2>
+    <p class="muted">Das aktuelle Projekt wird ersetzt. Speichere es vorher, wenn du es behalten willst.</p>
+    <div class="tpl" id="tplList"></div>
+    <div class="actions"><button value="cancel">Abbrechen</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlgHelp">
+  <form method="dialog">
+    <h2>So funktioniert's</h2>
+    <h3>Zeichnen</h3>
+    <p>Klicke auf die gestrichelten Felder, um Bereiche, Linien, Segmente und Geräte anzulegen. Ein Klick auf ein Element zeigt rechts seine Eigenschaften. <kbd>Entf</kbd> löscht, <kbd>Strg</kbd>+<kbd>D</kbd> dupliziert ein Gerät, <kbd>Strg</kbd>+<kbd>Z</kbd> macht rückgängig.</p>
+    <h3>Adressen</h3>
+    <p>Bereich und Linie ergeben sich aus der Position: Alles unter dem Linienkoppler 1.1.0 heißt 1.1.x. Neue Geräte bekommen die nächste freie Nummer, im zweiten Segment ab 1.1.65, im dritten ab 1.1.129. Benennst du eine Linie um, wandern alle Adressen mit.</p>
+    <h3>Telegramme</h3>
+    <p>Im Reiter „Telegramm“ wählst du einen Sender und eine Gruppenadresse. Die Simulation zeigt, welchen Weg das Telegramm nimmt, wo es ein Koppler weiterleitet und wo es gesperrt wird – mit Filtertabelle und Routingzähler.</p>
+    <h3>Speichern</h3>
+    <p>Das Projekt bleibt in diesem Browser gespeichert. Mit „Speichern“ lädst du es als Datei herunter, mit „Link zum Projekt kopieren“ kannst du es weitergeben.</p>
+    <div class="actions"><button value="ok" class="primary">Verstanden</button></div>
+  </form>
+</dialog>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
