@@ -1,96 +1,61 @@
 # KNX Topologie
 
-KNX-Anlagen im Browser zeichnen – mit allen Medien, automatisch vergebenen physikalischen Adressen und einer Simulation, die zeigt, welchen Weg ein Telegramm nimmt und wo es gesperrt wird.
+Ein kleines Webtool, um KNX-Anlagen zu zeichnen und zu zeigen, wie Telegramme durch die Anlage laufen. Gemacht für Schulungen, zum Lernen und zum Ausprobieren.
 
-**Direkt starten:** https://gtz187.github.io/knx-topologie/
+**Einfach im Browser öffnen:** https://gtz187.github.io/knx-topologie/
+
+Nichts installieren, kein Konto nötig. Deine Projekte bleiben in deinem Browser.
 
 ![Editor mit Beispielprojekt](docs/editor.png)
 
-## Was das Tool kann
+## Was du damit machen kannst
 
-**Medien:** TP (Busleitung), IP (KNXnet/IP) und RF (Funk). Die Bereichslinie (Backbone) kann TP oder IP sein, Hauptlinien ebenfalls, Linien TP oder RF. Powerline ist bewusst nicht enthalten.
-
-**Geräte und Koppler**
-
-| Element | Kürzel | Adresse |
-|---|---|---|
-| Bereichskoppler (TP/TP) | BK | x.0.0 |
-| KNX IP-Router als Bereichskoppler | IP-R | x.0.0 |
-| Linienkoppler (TP/TP) | LK | x.y.0 |
-| KNX IP-Router als Linienkoppler | IP-R | x.y.0 |
-| Medienkoppler TP/RF bzw. IP/RF | MK, IP/RF | x.y.0 |
-| Linienverstärker | LV | x.y.64 / 128 / 192 |
-| Segmentkoppler | SK | x.y.64 / 128 / 192 |
-| Teilnehmer (Taster, Aktoren, Sensoren …) | TLN | x.y.1 … |
-| Spannungsversorgung | SV | – |
-| Programmierschnittstelle (USB) | USB | x.y.255 |
-| KNX IP-Schnittstelle mit Tunneladressen | IP-S | x.y.n, Tunnel von oben |
-| LAN-Switch | Switch | – |
-| RF-Repeater | RF-Rep | x.y.n |
-
-Welcher Koppler eingesetzt wird, ergibt sich aus den Medien: Hängt eine TP-Linie an einer IP-Hauptlinie, wird automatisch ein KNX IP-Router daraus.
-
-**Adressen:** Geräte speichern nur ihre Teilnehmernummer, Bereich und Linie kommen aus der Position im Baum. Unter dem Linienkoppler 1.1.0 heißt also alles 1.1.x. Neue Geräte bekommen die nächste freie Nummer – im ersten Segment ab .1, im zweiten ab .65, im dritten ab .129. Wird eine Linie umnummeriert, wandern alle Adressen mit.
-
-**Prüfung:** doppelte Adressen, fehlende Spannungsversorgung, mehr als 64 Teilnehmer pro Segment, zu schwache SV, unpassende Medienkombinationen, Gruppenadressen ohne Sender oder Empfänger.
-
-**Telegramm-Simulation:** Sender anklicken, Gruppenadresse eingeben, „Telegramm senden“. Punkte laufen über die Leitungen, jeder Koppler zeigt ✓ oder ✕, das Protokoll nennt den Grund. Berücksichtigt werden:
-
-- Filtertabellen (automatisch aus den Gruppenadressen der Geräte unterhalb, plus manuelle Einträge)
-- Kopplereinstellungen je Telegrammart: filtern, alles weiterleiten, sperren
-- Physikalisch adressierte Telegramme (Weg über die Adresshierarchie) und Broadcasts
-- Routingzähler (Standard 6, 7 = unbegrenzt, 0 = Ende)
-- Linienverstärker leiten alles weiter, Segmentkoppler filtern
+- **Topologie zeichnen**: TP-Linien, KNX IP und RF-Funk auf einer gemeinsamen Karte. Bereiche, Linien, Segmente und Geräte legst du per Klick auf die gestrichelten Felder an.
+- **Adressen automatisch**: Unter dem Linienkoppler 1.1.0 heißt jedes Gerät 1.1.x. Nummerierst du die Linie um, wandern alle Adressen mit.
+- **Telegramme verfolgen**: Im Reiter „Telegramm“ einen Teilnehmer anklicken – er sendet auf seiner Gruppenadresse. Man sieht, wie das Telegramm alle Teilnehmer der Linie gleichzeitig erreicht, wie die Empfänger quittieren und wie Koppler weiterleiten oder sperren.
+- **Fehler einbauen**: Teilnehmer oder Koppler ausschalten. Bekommt der Sender keine Quittung, wiederholt er bis zu dreimal.
+- **Funk verstehen**: Eine RF-Linie erscheint als kleiner Grundriss. Wände dämpfen, Beton blockt, Repeater frischen Telegramme auf. Reine Funkanlagen ohne Busleitung gehen auch.
+- **Prüfen**: doppelte Adressen, fehlende Spannungsversorgung, zu viele Teilnehmer pro Segment.
+- **Weitergeben**: als Datei speichern, als Bild (SVG/PNG) oder Adressliste (CSV) exportieren, drucken oder als Link teilen.
 
 ![Telegramm-Simulation](docs/telegramm.png)
 
-**Sonstiges:** Rückgängig/Wiederholen, automatisches Speichern im Browser, Projekt als Datei speichern und öffnen, Export als SVG, PNG und Adressliste (CSV), Drucken, Projekt als Link weitergeben, Schriftfeld wie auf einer technischen Zeichnung, heller und dunkler Modus.
+## Geräte
 
-## Bedienung
+Teilnehmer (Taster, Aktoren, Melder …), Spannungsversorgung, Linienkoppler, Bereichskoppler, Linienverstärker, Segmentkoppler, KNX IP-Router, Medienkoppler TP/RF, USB- und IP-Schnittstelle, LAN-Switch und RF-Repeater. Welcher Koppler gebraucht wird, ergibt sich aus den Medien – hängt eine TP-Linie an einer IP-Hauptlinie, wird automatisch ein IP-Router daraus.
 
-| Aktion | So geht's |
-|---|---|
-| Bereich, Linie, Segment, Gerät anlegen | auf die gestrichelten Felder klicken |
-| Element bearbeiten | anklicken, rechts erscheinen die Eigenschaften |
-| Löschen / Duplizieren | <kbd>Entf</kbd> / <kbd>Strg</kbd>+<kbd>D</kbd> |
-| Rückgängig / Wiederholen | <kbd>Strg</kbd>+<kbd>Z</kbd> / <kbd>Strg</kbd>+<kbd>Y</kbd> |
-| Zoomen / Verschieben | Mausrad / mit gedrückter Maustaste ziehen |
-| Alles zeigen | <kbd>0</kbd> oder „Einpassen“ |
+## Gut zu wissen
 
-## Lokal starten
+- Auf TP quittieren alle Empfänger gleichzeitig. Ein Linienkoppler quittiert auf seiner Seite und sendet das Telegramm auf der anderen Seite neu.
+- KNX IP-Routing (Multicast) und KNX RF Ready kennen keine Quittung. KNX RF Multi quittiert per Fast-Ack – pro RF-Linie einstellbar.
+- Die Simulation zeigt das Prinzip, sie ersetzt keine ETS. KNX Secure und Powerline sind nicht dabei.
 
-Das Tool ist reines HTML/CSS/JavaScript ohne Build-Schritt. Weil es ES-Module nutzt, braucht es einen kleinen Webserver:
+## Mitmachen
+
+Das Projekt gehört allen: **benutzen, kopieren, forken, umbauen, erweitern** – ausdrücklich erwünscht. Ideen und Fehler gern als Issue, Verbesserungen gern als Pull Request. Hauptsache, es macht Spaß.
+
+Es ist reines HTML, CSS und JavaScript ohne Build-Schritt. Lokal starten:
 
 ```sh
 python3 -m http.server 8000
 # dann http://localhost:8000 öffnen
 ```
 
-Tests der Simulations- und Prüflogik (Node 20 oder neuer):
-
-```sh
-npm test
-```
-
-## Aufbau
+Tests der Simulationslogik (Node 20+): `npm test`
 
 | Datei | Inhalt |
 |---|---|
-| `js/model.js` | Datenmodell, Gerätekatalog, Adressvergabe |
-| `js/routing.js` | Telegramm-Simulation (ohne DOM, testbar) |
+| `js/model.js` | Datenmodell, Geräte, Adressvergabe |
+| `js/routing.js` | Telegramm-Simulation mit Quittung und Wiederholung |
+| `js/rf.js` | Funkausbreitung, Wände, Repeater |
 | `js/validate.js` | Prüfregeln |
-| `js/layout.js` | automatisches Layout und Leitungsgraph |
-| `js/render.js` | SVG-Zeichnung |
-| `js/sim.js` | Animation der Telegramme |
-| `js/app.js` | Oberfläche, Speichern, Export |
+| `js/layout.js`, `js/render.js` | Layout und Zeichnung |
+| `js/sim.js`, `js/rfplan.js` | Animation und Grundriss-Editor |
+| `js/app.js` | Oberfläche |
 | `js/templates.js` | Vorlagen |
 
-## Grenzen
-
-Die Simulation bildet das Verhalten von Kopplern nach KNX-Logik nach, ersetzt aber keine ETS. Filtertabellen werden so erzeugt, wie die ETS es typischerweise tut (alle Gruppenadressen, die unterhalb des Kopplers verwendet werden). Leitungslängen und Busspannung werden nicht berechnet.
-
-KNX ist eine eingetragene Marke der KNX Association. Dieses Projekt ist unabhängig und steht in keiner Verbindung zur KNX Association.
+KNX ist eine Marke der KNX Association. Dieses Projekt ist unabhängig und nicht mit ihr verbunden.
 
 ## Lizenz
 
-MIT
+MIT – mach damit, was du willst.

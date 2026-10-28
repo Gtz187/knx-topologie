@@ -71,6 +71,67 @@ test('Physikalisches Telegramm findet seinen Weg und nur dorthin', () => {
 test('Broadcast erreicht alle', () => {
   const p = TEMPLATES.demo.build();
   const r = simulate(p, { senderId: byName(p, 'Visualisierung').d.id, type: 'bc', rc: 7 });
-  const all = addressables(p).filter((x) => x.kind === 'device').length - 1;
+  // alle außer Sender und Batterie-Funkgeräten (die senden nur)
+  const battery = ['Funktaster Sofa'];
+  const all = addressables(p).filter((x) => x.kind === 'device' && !battery.includes(x.el.name)).length - 1;
   assert.equal(r.receivers.length, all);
+});
+
+test('Empfänger quittieren gleichzeitig, Koppler quittiert und sendet neu', () => {
+  const p = TEMPLATES.demo.build();
+  const r = simulate(p, { senderId: byName(p, 'Taster Flur').d.id, type: 'group', ga: '1/0/1', rc: 6 });
+  const seg = p.areas[0].lines[0].segments[0].id;
+  const ack = r.events.find((e) => e.kind === 'ack' && e.busId === seg);
+  assert.ok(ack, 'Quittung auf Linie 1.1');
+  assert.equal(ack.to.device, byName(p, 'Taster Flur').d.id);
+  assert.ok(ack.from.some((x) => x.coupler === p.areas[0].lines[0].coupler.id), 'LK quittiert');
+  assert.ok(ack.from.some((x) => x.device === byName(p, 'Schaltaktor 8-fach').d.id));
+  // auf Linie 1.2 sendet der Linienkoppler das Telegramm neu
+  const tx12 = r.events.find((e) => e.kind === 'tx' && e.busId === p.areas[0].lines[1].segments[0].id);
+  assert.equal(tx12.from.coupler, p.areas[0].lines[1].coupler.id);
+  assert.ok(tx12.t > ack.t);
+  // IP-Backbone ohne Quittung
+  assert.ok(!r.events.some((e) => e.kind === 'ack' && e.busId === 'bb'));
+});
+
+test('Ohne Quittung wird dreimal wiederholt', () => {
+  // Einzellinie ohne Koppler: Aktor aus → niemand quittiert
+  const p = TEMPLATES.single.build();
+  byName(p, 'Schaltaktor 4-fach').d.off = true;
+  const r = simulate(p, { senderId: byName(p, 'Taster Wohnen').d.id, type: 'group', ga: '1/0/1', rc: 6 });
+  const tx = r.events.filter((e) => e.kind === 'tx');
+  assert.equal(tx.length, 4);
+  assert.ok(r.events.some((e) => e.kind === 'giveup'));
+  assert.equal(r.receivers.length, 0);
+});
+
+test('Ausgeschalteter Linienkoppler leitet nicht weiter', () => {
+  const p = TEMPLATES.demo.build();
+  p.areas[0].lines[1].coupler.off = true;
+  const r = simulate(p, { senderId: byName(p, 'Taster Flur').d.id, type: 'group', ga: '1/0/1', rc: 6 });
+  assert.ok(!r.receivers.some((x) => byName2(p, x.id) === 'Dimmaktor 4-fach'));
+});
+
+test('Funk: Wand aus Beton blockt, Repeater sendet weiter', async () => {
+  const { ensureRF, newObstacle } = await import('../js/rf.js');
+  const p = TEMPLATES.single.build();
+  const a = p.areas[0];
+  const l = a.lines[0];
+  l.medium = 'RF';
+  l.segments[0].devices = l.segments[0].devices.filter((d) => d.type !== 'SV' && d.type !== 'PI');
+  const rf = ensureRF(l);
+  const [akt, t1] = l.segments[0].devices;
+  t1.pos = { x: 2, y: 5 }; akt.pos = { x: 40, y: 5 }; rf.w = 50;
+  let r = simulate(p, { senderId: t1.id, type: 'group', ga: '1/0/1', rc: 6 });
+  assert.equal(r.receivers.length, 0, 'zu weit weg');
+  // Repeater dazwischen
+  const rep = { id: 'rep1', type: 'RFR', name: 'Rep', dev: 50, sends: [], listens: [], pos: { x: 20, y: 5 }, power: 'mains', repeat: true };
+  l.segments[0].devices.push(rep);
+  r = simulate(p, { senderId: t1.id, type: 'group', ga: '1/0/1', rc: 6 });
+  assert.deepEqual(r.receivers.map((x) => x.id), [akt.id]);
+  assert.ok(r.events.some((e) => e.kind === 'tx' && e.retrans));
+  // Betonwand vor dem Aktor
+  rf.obstacles.push(newObstacle('concrete', 30, 0, 30, 10));
+  r = simulate(p, { senderId: t1.id, type: 'group', ga: '1/0/1', rc: 6 });
+  assert.equal(r.receivers.length, 0, 'Beton blockt');
 });

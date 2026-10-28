@@ -93,6 +93,28 @@ text{font-family:'IBM Plex Sans Condensed','Arial Narrow',Arial,sans-serif;fill:
 .tun{font-size:10.5px;fill:${C.ink2}}
 .dim .card,.dim .cpl,.dim .hdr,.dim .bus{opacity:.32}
 .dim .card.lit,.dim .cpl.lit,.dim .hdr.lit,.dim .bus.lit{opacity:1}
+.card.off .body{fill:url(#hatch);stroke-dasharray:4 3}
+.card.off text,.card.off .ico{opacity:.5}
+.card.off .led{fill:${C.ink3}}
+.cpl.off .body{fill:#6E7A74}
+.offtag{font-size:10px;font-weight:700;fill:#fff}
+.rf-bg{fill:#F3EEF9;stroke:${C.rf};stroke-width:1.2;stroke-dasharray:5 4}
+.rf-grid{stroke:#DCD2EC;stroke-width:.8;fill:none}
+.rf-dim{font-size:10px;fill:${C.ink3}}
+.rfd .b{fill:${C.module};stroke:${C.rf};stroke-width:1.8}
+.rfd.battery .b{stroke-dasharray:3 2.5;fill:#ECE6F5}
+.rfd .rep{fill:none;stroke:${C.signal};stroke-width:1.4}
+.rfd .ico{fill:none;stroke:${C.ink};stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.rfd .rfn{font-size:10.5px;font-weight:600}
+.rfd .rfp{font-size:10px;fill:${C.ink2}}
+.rfd.sel .b{stroke:${C.signal};stroke-width:3}
+.rfd.off .b{fill:url(#hatch)}
+.rfd.off .ico{opacity:.35}
+.rfd.err .b{stroke:${C.block}}
+.rfd.rx .b{stroke:${C.pass};stroke-width:3}
+.rfd.tx .b{stroke:${C.signal};stroke-width:3}
+.dim .rfd{opacity:.32}
+.dim .rfd.lit{opacity:1}
 .card.rx .body{stroke:${C.pass};stroke-width:2.5}
 .card.tx .body{stroke:${C.signal};stroke-width:2.5}
 .badge text{font-size:12px;font-weight:700;fill:#fff}
@@ -151,6 +173,7 @@ export function renderSVG(p, lay, st = {}) {
   parts.push(`<defs><style>${STYLE}</style>
 <pattern id="grid" width="12" height="12" patternUnits="userSpaceOnUse"><path d="M12 0H0V12" fill="none" stroke="${C.grid}" stroke-width=".6"/></pattern>
 <pattern id="grid5" width="60" height="60" patternUnits="userSpaceOnUse"><rect width="60" height="60" fill="url(#grid)"/><path d="M60 0H0V60" fill="none" stroke="${C.gridMajor}" stroke-width=".9"/></pattern>
+<pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="#E6EAE7"/><path d="M0 0V7" stroke="#CBD2CD" stroke-width="3"/></pattern>
 <filter id="glow" x="-2" y="-2" width="5" height="5"><feGaussianBlur stdDeviation="1.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
 <filter id="lift" x="-.1" y="-.2" width="1.2" height="1.5"><feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#22302A" flood-opacity=".18"/></filter>
 </defs>`);
@@ -194,7 +217,7 @@ export function renderSVG(p, lay, st = {}) {
   // Koppler
   for (const c of lay.couplers) {
     const isSel = sel === c.id || sel === c.ownerId;
-    const cls = [c.level === 'header' ? 'hdr' : 'cpl', isSel ? 'sel' : '', c.kind?.invalid ? 'invalid' : '', errs.has(c.id) || errs.has(c.ownerId) ? 'err' : ''].join(' ');
+    const cls = [c.level === 'header' ? 'hdr' : 'cpl', isSel ? 'sel' : '', c.kind?.invalid ? 'invalid' : '', c.c?.off ? 'off' : '', errs.has(c.id) || errs.has(c.ownerId) ? 'err' : ''].join(' ');
     const id = c.level === 'header' ? c.ownerId : c.id;
     if (c.level === 'header') {
       parts.push(`<g class="${cls}" data-id="${id}" data-sel="${c.ownerId}"><rect class="body" x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" rx="6"/>`
@@ -213,7 +236,7 @@ export function renderSVG(p, lay, st = {}) {
       + `<rect class="kindbg" x="${c.x + 32}" y="${c.y + 10}" width="${kw}" height="18" rx="3"/>`
       + `<text class="kind" x="${c.x + 32 + kw / 2}" y="${c.y + 23}" text-anchor="middle">${esc(c.kind.short)}</text>`
       + (c.pa ? `<text class="pa mono" x="${c.x + 40 + kw}" y="${c.y + 23.5}">${c.pa}</text>` : '')
-      + `<circle class="led" cx="${c.x + c.w - 14}" cy="${c.y + 15}" r="3.2"/>`
+      + (c.c?.off ? `<rect x="${c.x + c.w - 40}" y="${c.y + 8}" width="30" height="15" rx="3" fill="${C.block}"/><text class="offtag" x="${c.x + c.w - 25}" y="${c.y + 19}" text-anchor="middle">AUS</text>` : `<circle class="led" cx="${c.x + c.w - 14}" cy="${c.y + 15}" r="3.2"/>`)
       + `<text class="t1" x="${c.x + 32}" y="${c.y + (c.level === 'segment' ? 41 : 42)}">${esc(trunc(c.level === 'segment' ? (c.name || sub) : `${c.title}${c.name ? ' ' + c.name : ''}`, 27))}</text>`
       + (c.level !== 'segment' ? `<text class="t2" x="${c.x + 32}" y="${c.y + 56}">${esc(trunc(sub, 32))}</text>` : '')
       + `<title>${esc(c.kind.label)}${c.pa ? ' ' + c.pa : ''}</title>`
@@ -226,7 +249,7 @@ export function renderSVG(p, lay, st = {}) {
     const d = card.el;
     const t = DEVICE_TYPES[d.type];
     const isSel = sel === d.id;
-    const cls = ['card', d.type.toLowerCase(), card.medium === 'RF' && d.type === 'TLN' ? 'rf' : '', isSel ? 'sel' : '', errs.has(d.id) ? 'err' : ''].join(' ');
+    const cls = ['card', d.type.toLowerCase(), card.medium === 'RF' && d.type === 'TLN' ? 'rf' : '', isSel ? 'sel' : '', d.off ? 'off' : '', errs.has(d.id) ? 'err' : ''].join(' ');
     const tun = card.tunnels.length ? `Tunnel ${tunnelRange(card.tunnels)}` : '';
     const sub = d.type === 'SV' ? `${d.mA || '?'} mA` : d.type === 'TLN' ? (CATEGORIES[d.cat] || 'Teilnehmer') + (card.medium !== 'TP' ? ` ${MEDIA[card.medium].label}` : '') : tun || t.label;
     const name = d.name || (d.type === 'TLN' ? CATEGORIES[d.cat] : t.label);
@@ -239,10 +262,13 @@ export function renderSVG(p, lay, st = {}) {
       + `<text class="name" x="${x + 38}" y="${y + 19}">${esc(fit(name, w - 38 - (t.addr ? 22 : 8), 6.5))}</text>`
       + `<text class="sub" x="${x + 38}" y="${y + 36}">${esc(fit(sub, w - 38 - paW - 10, 5.3))}</text>`
       + (card.pa ? `<text class="pa mono" x="${x + w - 9}" y="${y + 36}" text-anchor="end">${card.pa}</text>` : '')
-      + (t.addr ? `<circle class="led" cx="${x + w - 12}" cy="${y + 14}" r="3"/>` : '')
+      + (d.off ? `<rect x="${x + w - 36}" y="${y + 6}" width="28" height="14" rx="3" fill="${C.block}"/><text class="offtag" x="${x + w - 22}" y="${y + 16.5}" text-anchor="middle">AUS</text>` : t.addr ? `<circle class="led" cx="${x + w - 12}" cy="${y + 14}" r="3"/>` : '')
       + `<title>${esc(name)}${card.pa ? ' ' + card.pa : ''}${tun ? ' – ' + esc(tun) : ''}</title>`
       + `</g>`);
   }
+
+  // Funkfelder
+  for (const r of lay.radios) parts.push(radioField(r, lay, st, errs));
 
   // Platzhalter zum Hinzufügen
   for (const g of lay.ghosts) {
@@ -258,6 +284,49 @@ export function renderSVG(p, lay, st = {}) {
   parts.push('<g id="sim-layer"></g>');
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${parts.join('')}</svg>`;
+}
+
+const OBS_STYLE = { wall: { w: 3, c: '#8C9992' }, concrete: { w: 5, c: '#3F4A45' } };
+
+function radioField(r, lay, st, errs) {
+  const { x, y, w, h, sc, rf } = r;
+  const out = [];
+  out.push(`<clipPath id="clip-${r.busId}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6"/></clipPath>`);
+  out.push(`<g class="rf-field" data-bus="${r.busId}">`);
+  out.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" class="rf-bg"/>`);
+  // 5-m-Raster
+  let g = '';
+  for (let m = 5; m < rf.w; m += 5) g += `M${x + m * sc} ${y}v${h}`;
+  for (let m = 5; m < rf.h; m += 5) g += `M${x} ${y + m * sc}h${w}`;
+  out.push(`<path d="${g}" class="rf-grid"/>`);
+  out.push(`<text x="${x + w - 6}" y="${y + h - 6}" class="rf-dim" text-anchor="end">${rf.w} × ${rf.h} m</text>`);
+  for (const o of rf.obstacles) {
+    const sty = OBS_STYLE[o.kind] || OBS_STYLE.wall;
+    out.push(`<line x1="${x + o.x1 * sc}" y1="${y + o.y1 * sc}" x2="${x + o.x2 * sc}" y2="${y + o.y2 * sc}" stroke="${sty.c}" stroke-width="${sty.w}" stroke-linecap="round"/>`);
+  }
+  out.push('</g>');
+  // Antenne des Medienkopplers
+  if (r.ant) {
+    const [ax, ay] = r.ant;
+    const [fx, fy] = r.feed;
+    out.push(`<g class="bus" data-cstub="${r.coupler.id}"><path d="M${fx} ${fy}V${fy + 8}L${ax} ${ay}" fill="none" stroke="${C.rf}" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"/></g>`);
+    out.push(`<g class="rf-ant"><circle cx="${ax}" cy="${ay}" r="5" fill="${C.coupler}"/><path d="M${ax - 7} ${ay - 7}a10 10 0 0 0 0 14M${ax + 7} ${ay - 7}a10 10 0 0 1 0 14" fill="none" stroke="${C.rf}" stroke-width="1.5"/></g>`);
+  }
+  // Geräte
+  for (const d of lay.rfDevs.filter((q) => q.busId === r.busId)) {
+    const el = d.el;
+    const cls = ['rfd', el.power === 'battery' ? 'battery' : '', el.repeat ? 'repeat' : '', el.off ? 'off' : '', st.selected === el.id ? 'sel' : '', errs.has(el.id) ? 'err' : ''].join(' ');
+    const name = el.name || CATEGORIES[el.cat] || DEVICE_TYPES[el.type].label;
+    out.push(`<g class="${cls}" data-id="${el.id}" transform="translate(${d.cx} ${d.cy})">`
+      + (el.repeat ? '<circle r="17" class="rep"/>' : '')
+      + `<circle r="13" class="b"/>`
+      + `<g class="ico" transform="translate(-8 -8) scale(.8)">${iconFor(el)}</g>`
+      + (el.off ? `<text y="4" text-anchor="middle" class="offtag" style="fill:${C.block}">AUS</text>` : '')
+      + `<text y="27" text-anchor="middle" class="rfn">${esc(trunc(name, 18))}</text>`
+      + (d.pa ? `<text y="38" text-anchor="middle" class="rfp mono">${d.pa}</text>` : '')
+      + `<title>${esc(name)}${d.pa ? ' ' + d.pa : ''} – ${el.power === 'battery' ? 'Batterie, sendet nur' : el.repeat ? 'Netz, Repeater' : 'Netz, empfängt'}</title></g>`);
+  }
+  return out.join('');
 }
 
 function tunnelRange(list) {

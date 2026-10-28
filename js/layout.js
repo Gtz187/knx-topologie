@@ -2,6 +2,7 @@
 // Geräte untereinander. Liefert Geometrie für das Zeichnen und einen
 // Graphen je Bus, über den die Telegramm-Animation ihre Wege findet.
 import { buses, couplerKind, SEG_KINDS, DEVICE_TYPES, fmtPA } from './model.js';
+import { ensureRF } from './rf.js';
 
 export const G = {
   COLW: 250,      // Spaltenbreite
@@ -16,6 +17,7 @@ export const G = {
   SEGH: 50,       // Höhe Linienverstärker/Segmentkoppler
   GHOSTH: 32,
   MARGIN: 48,
+  RFW: 340,       // Breite eines Funkfelds
 };
 
 const key = (x, y) => `${Math.round(x)},${Math.round(y)}`;
@@ -58,9 +60,9 @@ class BusGeo {
 
 export function layout(p, opts = {}) {
   const edit = !!opts.edit;
-  const { COLW, COLGAP, AREAGAP, PAD, BX, CARDX, CARDH, CARDGAP, BOXH, SEGH, GHOSTH, MARGIN } = G;
+  const { COLW, COLGAP, AREAGAP, PAD, BX, CARDX, CARDH, CARDGAP, BOXH, SEGH, GHOSTH, MARGIN, RFW } = G;
   const out = {
-    areas: [], cards: [], couplers: [], ghosts: [], labels: [],
+    areas: [], cards: [], couplers: [], ghosts: [], labels: [], radios: [], rfDevs: [],
     bus: new Map(), attach: new Map(), cAttach: new Map(),
   };
   const busList = buses(p);
@@ -153,6 +155,37 @@ export function layout(p, opts = {}) {
           id: ln.id, ownerId: ln.id, level: 'header', x: colX, y: LK_TOP, w: COLW, h: BOXH, bx,
           lower: ln.medium, title: `Linie ${ar.area}.${ln.line}`, name: ln.name,
         });
+      }
+      if (ln.medium === 'RF') {
+        // Funkfeld: kleiner Grundriss statt Geräteliste
+        const rf = ensureRF(ln);
+        const sg = ln.segments[0];
+        const sb = busOf(sg);
+        const W = RFW - 8;
+        const sc = W / rf.w;
+        const fx = colX + 4, fy = LK_TOP + BOXH + 30;
+        const P = (pt) => [Math.round((fx + pt.x * sc) * 10) / 10, Math.round((fy + pt.y * sc) * 10) / 10];
+        const geo = new BusGeo(sg.id, 'RF', 'rf');
+        out.bus.set(sg.id, geo);
+        const ant = ln.noCoupler ? null : P(rf.mk);
+        out.radios.push({ busId: sg.id, lineId: ln.id, x: fx, y: fy, w: W, h: rf.h * sc, sc, rf, ant, feed: ln.noCoupler ? null : [bx, LK_TOP + BOXH], coupler: ln.noCoupler ? null : ln.coupler });
+        for (const d of sg.devices) {
+          const [cx, cy] = P(d.pos);
+          out.rfDevs.push({ id: d.id, el: d, cx, cy, busId: sg.id, pa: DEVICE_TYPES[d.type].addr && d.dev !== null ? fmtPA(ar.area, ln.line, d.dev) : null });
+          out.attach.set(d.id, { busId: sg.id, node: key(cx, cy), stub: [[cx, cy], [cx, cy]], rf: true });
+        }
+        if (!ln.noCoupler) {
+          out.cAttach.set(ln.coupler.id, { up: { busId: main.id, node: key(bx, Y_MAIN) }, down: { busId: sg.id, node: key(ant[0], ant[1]) }, mid: [bx, LK_TOP + BOXH + 8] });
+        }
+        let y = fy + rf.h * sc + 14;
+        if (edit) {
+          out.ghosts.push({ action: 'add-device', x: colX + 4, y, w: W / 2 - 4, h: GHOSTH, label: 'Gerät hinzufügen', ctx: { busId: sg.id } });
+          out.ghosts.push({ action: 'edit-rf', x: colX + 4 + W / 2 + 4, y, w: W / 2 - 4, h: GHOSTH, label: 'Grundriss bearbeiten', ctx: { lineId: ln.id } });
+          y += GHOSTH + CARDGAP;
+        }
+        areaBottom = Math.max(areaBottom, y);
+        x += RFW + COLGAP;
+        continue;
       }
       let y = LK_TOP + BOXH;
       let prevGeo = null;

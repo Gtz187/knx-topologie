@@ -11,6 +11,8 @@ import { renderSVG, iconFor, ICONS } from './render.js';
 import { validate } from './validate.js';
 import { simulate, couplerGraph, filterTable } from './routing.js';
 import { animate, clearSim } from './sim.js';
+import { openRFPlan } from './rfplan.js';
+import { ensureRF, rangeOf } from './rf.js';
 
 const STORE = 'knx-topologie.projekt';
 const $ = (s, r = document) => r.querySelector(s);
@@ -25,7 +27,7 @@ const state = {
   view: { x: 40, y: 30, s: 1 },
   lay: null,
   issues: [],
-  sim: { senderId: null, type: 'group', ga: '', dest: '', rc: 6, speed: 1, result: null },
+  sim: { senderId: null, type: 'group', ga: '', dest: '', rc: 6, secs: 1.2, click: 'send', result: null },
   stopAnim: null,
 };
 
@@ -161,7 +163,7 @@ function fit() {
   const lay = state.lay;
   if (!lay) return;
   const sw = stage.clientWidth, sh = stage.clientHeight;
-  const s = Math.min(1.25, Math.max(0.2, Math.min((sw - 40) / lay.width, (sh - 40) / lay.height)));
+  const s = Math.min(1.8, Math.max(0.2, Math.min((sw - 40) / lay.width, (sh - 40) / lay.height)));
   state.view = { s, x: Math.max(20, (sw - lay.width * s) / 2), y: Math.max(20, (sh - lay.height * s) / 2) };
   applyView();
 }
@@ -225,11 +227,7 @@ function initStage() {
     const hit = e.target.closest('[data-id]');
     if (!hit) return;
     const id = hit.dataset.sel || hit.dataset.id;
-    if (state.tab === 'sim') {
-      const f = findById(state.p, hit.dataset.id);
-      if (f?.kind === 'device') { state.sim.senderId = f.el.id; renderSimPanel(); render(); }
-      return;
-    }
+    if (state.tab === 'sim') return simClick(hit.dataset.id);
     select(id);
   });
   stage.addEventListener('keydown', (e) => {
@@ -257,10 +255,21 @@ function ghostAction(g, e) {
   if (action === 'add-area') return addArea();
   if (action === 'add-line') return addLine(ctx.areaId);
   if (action === 'add-segment') return addSegment(ctx.lineId);
+  if (action === 'edit-rf') return openRF(ctx.lineId);
   if (action === 'add-device') {
     const r = g.getBoundingClientRect();
     openAddMenu(ctx.busId, e.clientX ? { x: e.clientX, y: r.bottom } : { x: r.left, y: r.bottom });
   }
+}
+
+function openRF(lineId) {
+  openRFPlan(lineId, {
+    project: () => state.p,
+    commit: (fn) => commit(fn),
+    toast,
+    secs: () => state.sim.secs,
+    closed: () => render(),
+  });
 }
 
 function addArea() {
@@ -443,6 +452,7 @@ function couplerSection(c, edge, opts = {}) {
   return `
     ${field('Bezeichnung', text('cname', c.name, `placeholder="${esc(edge)}"`))}
     ${tunnelsField}
+    <label class="check"><input type="checkbox" name="coff" ${c.off ? 'checked' : ''}> Ausgeschaltet – leitet nichts weiter</label>
     <h3>Filter</h3>
     ${field('Gruppentelegramme', select_('cgroup', c.group, FILTER_MODES))}
     ${field('Physikalisch', select_('cphys', c.phys, FILTER_MODES))}
@@ -457,6 +467,7 @@ const gaSort = (a, b) => a.localeCompare(b, 'de', { numeric: true });
 function couplerHandlers(getC) {
   return {
     cname: (v) => commit((p) => { getC(p).name = v.trim(); }),
+    coff: (v) => commit((p) => { const c = getC(p); if (v) c.off = true; else delete c.off; }),
     cgroup: (v) => commit((p) => { getC(p).group = v; }),
     cphys: (v) => commit((p) => { getC(p).phys = v; }),
     cbc: (v) => commit((p) => { getC(p).bc = v; }),
@@ -519,11 +530,13 @@ function panelLine(panel, f) {
     ${field('Liniennummer', `<input type="number" name="num" min="1" max="15" value="${ln.line}">`)}
     ${field('Name', text('lname', ln.name))}
     ${field('Medium', segmented('medium', ln.medium, { TP: 'TP', RF: 'RF' }))}
+    ${ln.medium === 'RF' ? field('RF-Standard', segmented('rfAck', ln.rfAck ? 'multi' : 'ready', { ready: 'RF Ready', multi: 'RF Multi' })) + `<p class="hint">${ln.rfAck ? 'KNX RF Multi: Empfänger quittieren per Fast-Ack, jeder in seinem eigenen Zeitschlitz.' : 'KNX RF Ready: Telegramme werden nicht quittiert und nicht wiederholt.'}</p>` : ''}
     <label class="check"><input type="checkbox" name="noc" ${ln.noCoupler ? 'checked' : ''}> Ohne Linienkoppler (Einzelanlage)</label>
     ${k.invalid && !ln.noCoupler ? `<p class="err-text">${esc(k.label)}.</p>` : ''}
     <div class="btnrow">
       <button class="btn primary" data-act="dev">Gerät hinzufügen</button>
       ${ln.medium === 'TP' && ln.segments.length < 4 ? '<button class="btn" data-act="seg">Segment anfügen</button>' : ''}
+      ${ln.medium === 'RF' ? '<button class="btn" data-act="rfplan">Grundriss bearbeiten</button>' : ''}
     </div>
     ${ln.medium === 'TP' ? `<h3>Segmente</h3><ul class="seglist">${segs}</ul><p class="hint">Jedes TP-Segment trägt bis zu 64 Teilnehmer und braucht eine eigene Spannungsversorgung.</p>` : ''}
     ${!ln.noCoupler ? `<h3>${esc(k.label)} ${fmtPA(ar.area, ln.line, 0)}</h3>${couplerSection(ln.coupler, k.label, { ipRouter: ar.mainMedium === 'IP', prefix: `${ar.area}.${ln.line}.` })}` : ''}
@@ -553,10 +566,12 @@ function panelLine(panel, f) {
       });
     },
     noc: (v) => commit((pp) => { getL(pp).noCoupler = v; }),
+    rfAck: (v) => commit((pp) => { const l = getL(pp); if (v === 'multi') l.rfAck = true; else delete l.rfAck; }),
     ctun: (v) => commit((pp) => { const l = getL(pp); l.coupler.tunnels = []; l.coupler.tunnels = nextTunnelNumbers(pp, ar.area, l.line, Number(v)); }),
     ...couplerHandlers((pp) => getL(pp).coupler),
     '@dev': (b) => { const r = b.getBoundingClientRect(); openAddMenu(ln.segments[ln.segments.length - 1].id, { x: r.left, y: r.bottom }); },
     '@seg': () => addSegment(ln.id),
+    '@rfplan': () => openRF(ln.id),
     '@del': () => removeSelected(),
   });
   panel.querySelectorAll('li[data-ref]').forEach((li) => { li.onclick = () => select(li.dataset.ref); });
@@ -604,6 +619,12 @@ function panelDevice(panel, f) {
     <p class="kind">${esc(typeLabel)} an ${esc(where)}</p>
     ${field('Name', text('dname', d.name))}
     ${d.type === 'TLN' ? field('Art', select_('cat', d.cat, CATEGORIES)) : ''}
+    ${t.addr ? `<label class="check"><input type="checkbox" name="off" ${d.off ? 'checked' : ''}> Ausgeschaltet – empfängt und quittiert nichts</label>` : ''}
+    ${bus.medium === 'RF' ? `<h3>Funk</h3>
+      ${field('Versorgung', `<select name="power"${d.type === 'RFR' ? ' disabled' : ''}><option value="battery"${d.power === 'battery' ? ' selected' : ''}>Batterie – sendet nur</option><option value="mains"${d.power !== 'battery' ? ' selected' : ''}>Netz – empfängt</option></select>`)}
+      <label class="check"><input type="checkbox" name="repeat" ${d.repeat ? 'checked' : ''} ${d.power === 'battery' || d.type === 'RFR' ? 'disabled' : ''}> Repeater: empfangene Telegramme weitersenden</label>
+      ${field('Reichweite', `<span class="speed"><input type="range" name="range" min="5" max="60" step="1" value="${rangeOf(d)}"><output>${rangeOf(d)} m</output></span>`)}
+      <div class="btnrow"><button class="btn" data-act="rfplan">Im Grundriss verschieben</button></div>` : ''}
     ${t.addr ? field('Adresse', `<div class="pa-input"><span class="prefix">${bus.a}.${bus.l}.</span><input type="number" name="dev" min="1" max="255" value="${d.dev ?? ''}"><button type="button" class="btn small" data-act="free" title="Nächste freie Nummer">frei</button></div>`) : ''}
     ${dupes ? `<p class="err-text">Die Adresse ${fmtPA(bus.a, bus.l, d.dev)} ist mehrfach vergeben.</p>` : ''}
     ${d.type === 'SV' ? field('Nennstrom', select_('mA', d.mA, { 160: '160 mA', 320: '320 mA', 640: '640 mA', 1280: '1280 mA' })) : ''}
@@ -628,6 +649,11 @@ function panelDevice(panel, f) {
   };
   bind(panel, {
     dname: (v) => commit((pp) => { getD(pp).name = v.trim(); }),
+    off: (v) => commit((pp) => { const x = getD(pp); if (v) x.off = true; else delete x.off; }),
+    power: (v) => commit((pp) => { const x = getD(pp); x.power = v; if (v === 'battery') delete x.repeat; }),
+    repeat: (v) => commit((pp) => { const x = getD(pp); if (v) x.repeat = true; else delete x.repeat; }),
+    range: (v) => commit((pp) => { getD(pp).range = Number(v); }),
+    '@rfplan': () => openRF(bus.line.id),
     cat: (v) => commit((pp) => { getD(pp).cat = v; }),
     dev: (v) => {
       const n = Number(v);
@@ -647,6 +673,7 @@ function panelDevice(panel, f) {
       state.sim.senderId = d.id;
       state.sim.type = 'group';
       state.sim.ga = d.sends[0] || d.listens[0] || state.sim.ga;
+      state.sim.gaManual = false;
       setTab('sim');
     },
   });
@@ -746,29 +773,44 @@ function renderSimPanel() {
   if (s.senderId && !opts.some((o) => o.id === s.senderId)) s.senderId = null;
   const gas = allGAs(state.p);
   const r = s.result;
+  const sender = s.senderId ? findById(state.p, s.senderId)?.el : null;
+  const autoGA = sender?.sends[0] || '';
   panel.innerHTML = `
     <h2>Telegramm verfolgen</h2>
-    <p class="kind">Klicke in der Zeichnung auf ein Gerät, um es als Sender zu wählen.</p>
+    <p class="kind">${s.click === 'send' ? 'Klicke in der Zeichnung auf einen Teilnehmer – er sendet sofort.' : 'Klicke auf Teilnehmer oder Koppler, um sie aus- und wieder einzuschalten.'}</p>
     <div class="sim-form">
+      ${field('Klick auf Gerät', segmented('click', s.click, { send: 'Senden', toggle: 'Ein/Aus' }))}
+      ${field('Laufzeit', `<span class="speed"><input type="range" name="secs" min="0.3" max="4" step="0.1" value="${s.secs}" aria-label="Laufzeit pro Leitung"><output>${String(s.secs).replace('.', ',')} s</output></span>`)}
+      <p class="hint">So lange braucht ein Telegramm über eine Linie. Kleiner = schneller.</p>
       ${field('Sender', `<select name="sender"><option value="">– Gerät wählen –</option>${opts.map((o) => `<option value="${o.id}"${o.id === s.senderId ? ' selected' : ''}>${esc(o.label)}</option>`).join('')}</select>`)}
       ${field('Art', segmented('type', s.type, { group: 'Gruppe', phys: 'Physikalisch', bc: 'Broadcast' }))}
-      ${s.type === 'group' ? field('Gruppenadresse', `<input type="text" name="ga" list="galist" value="${esc(s.ga)}" placeholder="1/0/1"><datalist id="galist">${gas.map((g) => `<option value="${g}">`).join('')}</datalist>`) : ''}
+      ${s.type === 'group' ? field('Gruppenadresse', `<input type="text" name="ga" list="galist" value="${esc(s.gaManual ? s.ga : '')}" placeholder="${autoGA ? `${autoGA} (Sende-Adresse)` : '1/0/1'}"><datalist id="galist">${gas.map((g) => `<option value="${g}">`).join('')}</datalist>`) : ''}
       ${s.type === 'phys' ? field('Ziel', `<input type="text" name="dest" list="palist" value="${esc(s.dest)}" placeholder="1.1.5"><datalist id="palist">${addressables(state.p).map((x) => `<option value="${fmtPA(x.a, x.l, x.d)}">${esc(x.el.name || '')}</option>`).join('')}</datalist>`) : ''}
       ${field('Routingzähler', select_('rc', s.rc, { 7: '7 – unbegrenzt', 6: '6 – Standard', 5: '5', 4: '4', 3: '3', 2: '2', 1: '1', 0: '0' }))}
-      ${field('Tempo', `<span class="speed"><input type="range" name="speed" min="0.4" max="3" step="0.1" value="${s.speed}" aria-label="Tempo der Animation"></span>`)}
     </div>
-    <div class="btnrow"><button class="btn go" data-act="send">Telegramm senden</button>${r ? '<button class="btn" data-act="clear">Zurücksetzen</button>' : ''}</div>
-    ${r ? `<h3>Ablauf</h3><ul class="issues log">${r.log.map((l) => `<li ${l.ref ? `data-ref="${l.ref}"` : ''}><span class="mark ${l.level}"></span><span>${esc(l.text)}</span></li>`).join('')}</ul>` : `<p class="hint">Grün: Koppler leitet weiter. Rot: Koppler sperrt. Ob ein Gruppentelegramm durchkommt, entscheidet die Filtertabelle des Kopplers – sie wird automatisch aus den Gruppenadressen der Geräte darunter gebildet.</p>`}`;
+    <div class="btnrow"><button class="btn go" data-act="send">Telegramm senden</button>${r ? '<button class="btn" data-act="clear">Zurücksetzen</button>' : ''}${offCount() ? `<button class="btn" data-act="allon">Alle wieder einschalten (${offCount()})</button>` : ''}</div>
+    ${r ? `<h3>Ablauf</h3><ul class="issues log">${r.log.map((l) => `<li ${l.ref ? `data-ref="${l.ref}"` : ''}><span class="mark ${l.level}"></span><span>${esc(l.text)}</span></li>`).join('')}</ul>` : `
+    <h3>Was du siehst</h3>
+    <ul class="legend-list">
+      <li><span class="dot" style="background:var(--signal)"></span>Telegramm auf TP – erreicht alle Teilnehmer der Linie gleichzeitig, große Punkte = angesprochen</li>
+      <li><span class="dot small" style="background:var(--pass)"></span>Quittung (ACK) – alle Empfänger antworten gleichzeitig</li>
+      <li><span class="dot" style="background:#2F6DB3"></span>IP-Routing und <span class="dot" style="background:#7A4CC2"></span>RF Ready – ohne Quittung, keine Wiederholung. RF Multi quittiert per Fast-Ack in Zeitschlitzen (in den Linieneigenschaften einstellbar).</li>
+      <li><span class="badge-ok">✓</span>Koppler quittiert und sendet auf der anderen Seite neu, <span class="badge-no">✕</span> gesperrt</li>
+    </ul>
+    <p class="hint">Antwortet niemand, wiederholt der Sender das Telegramm bis zu dreimal. Schalte dazu im Modus „Ein/Aus“ einen Empfänger ab.</p>`}`;
   bind(panel, {
-    sender: (v) => { s.senderId = v || null; },
+    click: (v) => { s.click = v; renderSimPanel(); },
+    secs: (v, el) => { s.secs = Number(v); el.nextElementSibling.textContent = `${String(v).replace('.', ',')} s`; },
+    sender: (v) => { s.senderId = v || null; renderSimPanel(); },
     type: (v) => { s.type = v; renderSimPanel(); },
-    ga: (v) => { s.ga = v; },
+    ga: (v) => { s.ga = v; s.gaManual = !!v.trim(); },
     dest: (v) => { s.dest = v; },
     rc: (v) => { s.rc = Number(v); },
-    speed: (v) => { s.speed = Number(v); },
     '@send': () => runSim(),
     '@clear': () => { s.result = null; state.stopAnim?.(); clearSim($('#sheet svg')); renderSimPanel(); },
+    '@allon': () => commit((p) => { forEachSwitchable(p, (x) => { delete x.off; }); }, { keepSim: false }),
   });
+  panel.querySelector('[name="secs"]').oninput = (e) => { s.secs = Number(e.target.value); e.target.nextElementSibling.textContent = `${String(e.target.value).replace('.', ',')} s`; };
   panel.querySelector('[name="ga"]')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { s.ga = e.target.value; runSim(); } });
   panel.querySelector('[name="dest"]')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { s.dest = e.target.value; runSim(); } });
   panel.querySelectorAll('.log li[data-ref]').forEach((li) => {
@@ -776,9 +818,60 @@ function renderSimPanel() {
   });
 }
 
+function forEachSwitchable(p, fn) {
+  for (const b of buses(p)) b.devices.forEach(fn);
+  for (const a of p.areas) {
+    fn(a.coupler);
+    for (const l of a.lines) {
+      fn(l.coupler);
+      l.segments.forEach((sg) => sg.coupler && fn(sg.coupler));
+    }
+  }
+}
+
+function offCount() {
+  let n = 0;
+  forEachSwitchable(state.p, (x) => { if (x.off) n++; });
+  return n;
+}
+
+// Klick auf ein Element im Reiter „Telegramm“
+function simClick(id) {
+  const s = state.sim;
+  const f = findById(state.p, id);
+  if (!f) return;
+  if (s.click === 'toggle') {
+    let obj = null, name = '';
+    if (f.kind === 'device' && DEVICE_TYPES[f.el.type].addr) { obj = (pp) => findById(pp, id).el; name = f.el.name || 'Gerät'; }
+    else if (f.kind === 'area') { obj = (pp) => findById(pp, id).el.coupler; name = `Bereichskoppler ${f.el.area}.0.0`; }
+    else if (f.kind === 'line' && !f.el.noCoupler) { obj = (pp) => findById(pp, id).el.coupler; name = `Linienkoppler ${f.area.area}.${f.el.line}.0`; }
+    else if (f.kind === 'segment' && f.el.coupler) { obj = (pp) => findById(pp, id).el.coupler; name = SEG_KINDS[f.el.coupler.kind].label; }
+    if (!obj) return;
+    const wasOff = !!obj(state.p).off;
+    commit((pp) => { const o = obj(pp); if (wasOff) delete o.off; else o.off = true; });
+    toast(`${name} ist jetzt ${wasOff ? 'eingeschaltet' : 'ausgeschaltet'}.`);
+    return;
+  }
+  if (f.kind !== 'device' || !DEVICE_TYPES[f.el.type].addr) return;
+  s.senderId = f.el.id;
+  if (s.type === 'group' && !s.gaManual) s.ga = f.el.sends[0] || f.el.listens[0] || '';
+  if (s.type === 'group' && !s.ga) {
+    renderSimPanel();
+    return toast(`${f.el.name || 'Dieses Gerät'} hat keine Sende-Adresse. Trag oben eine Gruppenadresse ein oder hinterlege sie in den Eigenschaften.`);
+  }
+  runSim();
+}
+
 function runSim() {
   const s = state.sim;
   if (s.type === 'group') {
+    const typed = $('#panel-sim [name="ga"]')?.value.trim();
+    s.gaManual = !!typed;
+    if (typed) s.ga = typed;
+    else {
+      const sender = s.senderId ? findById(state.p, s.senderId)?.el : null;
+      s.ga = sender?.sends[0] || sender?.listens[0] || '';
+    }
     const { ok } = parseGAList(s.ga);
     if (!ok.length) return toast('Bitte eine gültige Gruppenadresse eingeben, z. B. 1/0/1.');
     s.ga = ok[0];
@@ -789,7 +882,7 @@ function runSim() {
   if (!result.ok) return;
   state.stopAnim?.();
   const svg = $('#sheet svg');
-  state.stopAnim = animate(svg, state.lay, result, { speed: s.speed });
+  state.stopAnim = animate(svg, state.lay, result, { secs: s.secs });
 }
 
 function flash(id) {

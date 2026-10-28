@@ -74,6 +74,8 @@
   </form>
 </dialog>
 
+<dialog id="dlgRF" class="rfplan" aria-label="Grundriss der Funklinie"></dialog>
+
 <dialog id="dlgHelp">
   <form method="dialog">
     <h2>So funktioniert's</h2>
@@ -82,7 +84,9 @@
     <h3>Adressen</h3>
     <p>Bereich und Linie ergeben sich aus der Position: Alles unter dem Linienkoppler 1.1.0 heißt 1.1.x. Neue Geräte bekommen die nächste freie Nummer, im zweiten Segment ab 1.1.65, im dritten ab 1.1.129. Benennst du eine Linie um, wandern alle Adressen mit.</p>
     <h3>Telegramme</h3>
-    <p>Im Reiter „Telegramm“ wählst du einen Sender und eine Gruppenadresse. Die Simulation zeigt, welchen Weg das Telegramm nimmt, wo es ein Koppler weiterleitet und wo es gesperrt wird – mit Filtertabelle und Routingzähler.</p>
+    <p>Im Reiter „Telegramm“ klickst du auf einen Teilnehmer – er sendet auf seiner Gruppenadresse. Orange Punkte sind das Telegramm, grüne die Quittungen. Koppler zeigen ✓ (weitergeleitet) oder ✕ (gesperrt). Im Modus „Ein/Aus“ schaltest du Geräte ab und siehst die Wiederholungen. Mit „Laufzeit“ stellst du das Tempo ein.</p>
+    <h3>Funk</h3>
+    <p>Eine RF-Linie erscheint als Grundriss. Unter „Grundriss bearbeiten“ verschiebst du Geräte und zeichnest Wände (dämpfen) oder Beton (blockt). Batteriegeräte senden nur, Netzgeräte empfangen und können als Repeater weitersenden.</p>
     <h3>Speichern</h3>
     <p>Das Projekt bleibt in diesem Browser gespeichert. Mit „Speichern“ lädst du es als Datei herunter, mit „Link zum Projekt kopieren“ kannst du es weitergeben.</p>
     <div class="actions"><button value="ok" class="primary">Verstanden</button></div>

@@ -254,3 +254,65 @@ kbd { font-family: var(--mono); font-size: 12.5px; padding: 0 5px; border: 1px s
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* Legende im Telegramm-Reiter */
+.legend-list { list-style: none; padding: 0; margin: 0; font-size: 14.5px; }
+.legend-list li { padding: 6px 0; }
+.dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 7px; vertical-align: -1px; box-shadow: 0 0 0 2px #fff; }
+.dot.small { width: 8px; height: 8px; }
+.badge-ok, .badge-no { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: #fff; font-size: 11px; font-weight: 700; margin-right: 6px; }
+.badge-ok { background: var(--pass); }
+.badge-no { background: var(--block); }
+.speed output { font-family: var(--mono); font-size: 13px; min-width: 44px; text-align: right; }
+
+/* Funkplan */
+dialog.rfplan { max-width: none; width: min(1280px, 96vw); height: min(860px, 92vh); padding: 0; display: none; }
+dialog.rfplan[open] { display: flex; flex-direction: column; }
+.rf-head { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.rf-head h2 { margin: 0; font-size: 19px; flex: 1 1 auto; }
+.rf-modes { flex: 0 1 520px; }
+.rf-body { flex: 1; display: flex; min-height: 0; }
+.rf-stage { flex: 1; min-width: 0; padding: 14px; background: var(--stage); display: grid; }
+.rf-stage svg { width: 100%; height: 100%; touch-action: none; background: #EDF1EE; border-radius: 6px; }
+.rf-side { width: 300px; flex: none; overflow: auto; padding: 14px 16px; border-left: 1px solid var(--line); }
+.rf-side .field { grid-template-columns: 90px 1fr; }
+.rf-size { display: grid; grid-template-columns: 1fr; }
+.unit { display: flex; align-items: center; gap: 6px; }
+.unit input { width: 90px; }
+.legend-list .line { display: inline-block; width: 22px; height: 0; border-top: 3px solid #8C9992; margin-right: 8px; vertical-align: 3px; }
+.legend-list .line.concrete { border-top: 5px solid #3F4A45; }
+.rf-scale { font-size: .55px; fill: #8C9992; font-family: var(--font); }
+.rf-range { fill: rgba(122,76,194,.07); stroke: #7A4CC2; stroke-width: .08; stroke-dasharray: .4 .3; pointer-events: none; }
+.rf-obs .hit { stroke: transparent; stroke-width: 1.2; cursor: pointer; }
+.rf-obs .vis { stroke-linecap: round; pointer-events: none; }
+.rf-obs.wall .vis { stroke: #8C9992; stroke-width: .3; }
+.rf-obs.concrete .vis { stroke: #3F4A45; stroke-width: .5; }
+.rf-obs.sel .vis { stroke: #F08A24; }
+.rf-draft { stroke: #F08A24; stroke-width: .3; stroke-dasharray: .5 .3; stroke-linecap: round; }
+.rf-draft.concrete { stroke-width: .5; }
+.rf-dev, .rf-mk { cursor: grab; }
+.rf-dev .rf-body { fill: #F8F9F7; stroke: #7A4CC2; stroke-width: .12; }
+.rf-dev.battery .rf-body { fill: #ECE6F5; stroke-dasharray: .25 .2; }
+.rf-dev .rf-rep { fill: none; stroke: #F08A24; stroke-width: .1; }
+.rf-dev .rf-ico { fill: none; stroke: #22302A; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.rf-dev.off .rf-body { fill: #DDE2DF; }
+.rf-dev.sel .rf-body, .rf-mk.sel rect { stroke: #F08A24; stroke-width: .2; }
+.rf-dev.rx .rf-body, .rf-mk.rx rect { stroke: #2E9B57; stroke-width: .25; }
+.rf-dev.tx .rf-body, .rf-mk.tx rect { stroke: #F08A24; stroke-width: .25; }
+.rf-name { font-size: .6px; font-weight: 600; fill: #22302A; font-family: var(--font); }
+.rf-pa { font-size: .5px; fill: #5B6A62; font-family: var(--mono); }
+.rf-mk rect { fill: #2D3934; stroke: #7A4CC2; stroke-width: .1; }
+.rf-mk.off rect { fill: #8C9992; }
+.rf-mk-t { font-size: .6px; font-weight: 700; fill: #fff; font-family: var(--font); }
+.rf-wave { fill: rgba(122,76,194,.08); stroke: #7A4CC2; stroke-width: .1; pointer-events: none; }
+.rf-wave.re { fill: rgba(240,138,36,.08); stroke: #F08A24; }
+.rf-ray { stroke-width: .08; pointer-events: none; }
+.rf-ray.ok { stroke: #2E9B57; stroke-width: .12; }
+.rf-ray.blocked { stroke: #D33A2C; stroke-dasharray: .3 .2; }
+.rf-ray.deaf { stroke: #8C9992; stroke-dasharray: .2 .2; }
+.rf-ray.far { stroke: #B8C1BC; stroke-dasharray: .15 .3; }
+.rf-x { font-size: 1px; fill: #D33A2C; font-weight: 700; pointer-events: none; }
+@media (max-width: 860px) {
+  .rf-body { flex-direction: column; }
+  .rf-side { width: 100%; border-left: 0; border-top: 1px solid var(--line); max-height: 40%; }
+}

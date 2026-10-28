@@ -28,7 +28,7 @@ export const TEMPLATES = {
       const a1 = newArea(1); a1.name = 'Wohnhaus'; p.areas.push(a1);
       const l11 = newLine(1); l11.name = 'Erdgeschoss'; a1.lines.push(l11);
       const l12 = newLine(2); l12.name = 'Obergeschoss'; a1.lines.push(l12);
-      const l13 = newLine(3, 'RF'); l13.name = 'Funk Wohnzimmer'; a1.lines.push(l13);
+      const l13 = newLine(3, 'RF'); l13.name = 'Funk Wohnzimmer'; l13.rfAck = true; a1.lines.push(l13);
       fill(p, a1, [SV(320), T('Wetterstation Dach', 'wetter', ['3/1/1', '2/0/9'])]);
 
       fill(p, l11.segments[0], [
@@ -58,6 +58,8 @@ export const TEMPLATES = {
         T('Funk-Schaltaktor Stehlampe', 'aktor', [], ['1/0/4', '1/0/1']),
         ['RFR', { name: 'RF-Repeater Flur' }],
       ]);
+      l13.rf = { w: 30, h: 16, mk: { x: 1.5, y: 1.5 }, obstacles: [{ id: 'o1', kind: 'wall', x1: 18, y1: 0, x2: 18, y2: 9 }] };
+      [[6, 6], [12, 12], [20, 12]].forEach(([x, y], i) => { l13.segments[0].devices[i].pos = { x, y }; });
 
       const a2 = newArea(2); a2.name = 'Garage'; p.areas.push(a2);
       const l21 = newLine(1); l21.name = 'Garage'; a2.lines.push(l21);
@@ -91,6 +93,32 @@ export const TEMPLATES = {
         T('Taster Küche', 'taster', ['1/0/2']),
         ['PI', { name: 'USB-Schnittstelle' }],
       ]);
+      return p;
+    },
+  },
+
+  rf: {
+    label: 'Reine Funkanlage',
+    hint: 'KNX RF ohne Busleitung, mit Repeater und Wänden',
+    build() {
+      const p = newProject('Funk-Nachrüstung Altbau');
+      p.backbone.enabled = false;
+      const a = newArea(1); p.areas.push(a);
+      const l = newLine(1, 'RF'); l.noCoupler = true; l.rfAck = true; l.name = 'Wohnung'; a.lines.push(l);
+      fill(p, l.segments[0], [
+        T('Taster Wohnzimmer', 'taster', ['1/0/1']),
+        T('Schaltaktor Stehlampe', 'aktor', [], ['1/0/1']),
+        ['RFR', { name: 'Repeater Flur' }],
+        T('Dimmaktor Schlafzimmer', 'dimmer', [], ['1/0/1', '1/0/2']),
+        T('Taster Schlafzimmer', 'taster', ['1/0/2']),
+      ]);
+      const d = l.segments[0].devices;
+      l.rf = { w: 30, h: 16, mk: null, obstacles: [
+        { id: 'w1', kind: 'wall', x1: 11, y1: 0, x2: 11, y2: 7 },
+        { id: 'w2', kind: 'concrete', x1: 20, y1: 9.5, x2: 20, y2: 16 },
+      ] };
+      const pos = [[3, 4], [7, 12], [15, 12], [26, 4], [24, 12]];
+      d.forEach((x, i) => { x.pos = { x: pos[i][0], y: pos[i][1] }; });
       return p;
     },
   },
