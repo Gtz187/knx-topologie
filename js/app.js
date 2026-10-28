@@ -436,7 +436,7 @@ function panelProject(panel) {
     }),
     '@area': () => addArea(),
     '@bbdev': (b) => { const r = b.getBoundingClientRect(); openAddMenu('bb', { x: r.left + 20, y: r.bottom }); },
-    '@tpl': (b) => { if (confirm(`Vorlage „${TEMPLATES[b.dataset.k].label}“ laden? Das aktuelle Projekt wird ersetzt (Rückgängig ist möglich).`)) setProject(TEMPLATES[b.dataset.k].build()); },
+    '@tpl': async (b) => { if (await ask(`Vorlage „${TEMPLATES[b.dataset.k].label}“ laden? Das aktuelle Projekt wird ersetzt (Rückgängig ist möglich).`, 'Laden')) setProject(TEMPLATES[b.dataset.k].build()); },
   });
 }
 
@@ -551,9 +551,10 @@ function panelLine(panel, f) {
       toast(`Alle Geräte heißen jetzt ${ar.area}.${n}.x`);
     },
     lname: (v) => commit((pp) => { getL(pp).name = v.trim(); }),
-    medium: (v) => {
+    medium: async (v) => {
       const bad = ln.segments.flatMap((s) => s.devices).filter((d) => !DEVICE_TYPES[d.type].media.includes(v));
-      if (bad.length && !confirm(`${bad.length} Geräte passen nicht zu ${v} und werden entfernt. Fortfahren?`)) return render();
+      const what = bad.length === 1 ? `${bad[0].name || DEVICE_TYPES[bad[0].type].label} passt nicht zu ${v} und wird entfernt.` : `${bad.length} Geräte passen nicht zu ${v} und werden entfernt.`;
+      if (bad.length && !(await ask(what, 'Umstellen'))) return render();
       commit((pp) => {
         const l = getL(pp);
         l.medium = v;
@@ -713,11 +714,21 @@ function duplicate() {
   select(id);
 }
 
-function removeSelected() {
+// Eigene Rückfrage statt confirm() – das ist in eingebetteten Seiten oft blockiert
+function ask(text, yes = 'OK') {
+  const dlg = $('#dlgAsk');
+  $('#askText').textContent = text;
+  $('#askYes').textContent = yes;
+  dlg.returnValue = '';
+  dlg.showModal();
+  return new Promise((done) => dlg.addEventListener('close', () => done(dlg.returnValue === 'yes'), { once: true }));
+}
+
+async function removeSelected() {
   const f = findById(state.p, state.sel);
   if (!f) return;
-  if (f.kind === 'area' && !confirm(`Bereich ${f.el.area} mit allen Linien und Geräten löschen?`)) return;
-  if (f.kind === 'line' && !confirm(`Linie ${f.area.area}.${f.el.line} mit allen Geräten löschen?`)) return;
+  if (f.kind === 'area' && !(await ask(`Bereich ${f.el.area} mit allen Linien und Geräten löschen?`, 'Löschen'))) return;
+  if (f.kind === 'line' && !(await ask(`Linie ${f.area.area}.${f.el.line} mit allen Geräten löschen?`, 'Löschen'))) return;
   commit((p) => {
     const g = findById(p, state.sel);
     if (g.kind === 'device') g.bus.devices.splice(g.index, 1);
