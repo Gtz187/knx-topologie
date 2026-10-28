@@ -15,6 +15,7 @@ Nichts installieren, kein Konto nötig. Deine Projekte bleiben in deinem Browser
 - **Telegramme verfolgen**: Im Reiter „Telegramm“ einen Teilnehmer anklicken – er sendet auf seiner Gruppenadresse. Man sieht, wie das Telegramm alle Teilnehmer der Linie gleichzeitig erreicht, wie die Empfänger quittieren und wie Koppler weiterleiten oder sperren.
 - **Fehler einbauen**: Teilnehmer oder Koppler ausschalten. Bekommt der Sender keine Quittung, wiederholt er bis zu dreimal.
 - **Funk verstehen**: Eine RF-Linie erscheint als kleiner Grundriss. Wände dämpfen, Beton blockt, Repeater frischen Telegramme auf. Reine Funkanlagen ohne Busleitung gehen auch.
+- **ETS-Projekt importieren**: Eine .knxproj-Datei über „Öffnen“ laden – Topologie, Geräte, Adressen und Gruppenadressen werden übernommen. Alles bleibt im Browser. Passwortgeschützte Projekte vorher ohne Passwort exportieren.
 - **Prüfen**: doppelte Adressen, fehlende Spannungsversorgung, zu viele Teilnehmer pro Segment.
 - **Weitergeben**: als Datei speichern, als Bild (SVG/PNG) oder Adressliste (CSV) exportieren, drucken oder als Link teilen.
 
@@ -49,6 +50,7 @@ Tests der Simulationslogik (Node 20+): `npm test`
 | `js/routing.js` | Telegramm-Simulation mit Quittung und Wiederholung |
 | `js/rf.js` | Funkausbreitung, Wände, Repeater |
 | `js/validate.js` | Prüfregeln |
+| `js/ets.js` | Import von ETS-Projekten (.knxproj) |
 | `js/layout.js`, `js/render.js` | Layout und Zeichnung |
 | `js/sim.js`, `js/rfplan.js` | Animation und Grundriss-Editor |
 | `js/app.js` | Oberfläche |

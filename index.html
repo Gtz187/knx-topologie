@@ -23,7 +23,7 @@
     <button id="btnRedo" title="Wiederholen (Strg+Y)" aria-label="Wiederholen"><svg viewBox="0 0 20 20"><path d="m13 5 4 4-4 4M16.5 9H8a5 5 0 0 0 0 10h2"/></svg></button>
     <span class="sep"></span>
     <button id="btnNew">Neu</button>
-    <button id="btnOpen">Öffnen</button>
+    <button id="btnOpen" title="Gespeichertes Projekt oder ETS-Projekt (.knxproj) öffnen">Öffnen</button>
     <button id="btnSave">Speichern</button>
     <div class="menu">
       <button id="btnExport" aria-haspopup="true" aria-expanded="false">Exportieren</button>
@@ -37,7 +37,7 @@
     </div>
     <button id="btnHelp" title="Hilfe" aria-label="Hilfe">?</button>
   </div>
-  <input type="file" id="fileInput" accept=".json,.knxtopo,application/json" hidden>
+  <input type="file" id="fileInput" accept=".json,.knxtopo,.knxproj,application/json" hidden>
 </header>
 
 <main class="work">
@@ -96,6 +96,8 @@
     <p>Eine RF-Linie erscheint als Grundriss. Unter „Grundriss bearbeiten“ verschiebst du Geräte und zeichnest Wände (dämpfen) oder Beton (blockt). Batteriegeräte senden nur, Netzgeräte empfangen und können als Repeater weitersenden.</p>
     <h3>Speichern</h3>
     <p>Das Projekt bleibt in diesem Browser gespeichert. Mit „Speichern“ lädst du es als Datei herunter, mit „Link zum Projekt kopieren“ kannst du es weitergeben.</p>
+    <h3>ETS-Projekt importieren</h3>
+    <p>Über „Öffnen“ kannst du auch eine ETS-Projektdatei (.knxproj) laden. Bereiche, Linien, Geräte mit Adressen und Gruppenadressen werden übernommen. Die Datei bleibt in deinem Browser. Passwortgeschützte Projekte bitte in der ETS ohne Passwort exportieren.</p>
     <div class="actions"><button value="ok" class="primary">Verstanden</button></div>
   </form>
 </dialog>

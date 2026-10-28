@@ -1009,10 +1009,17 @@ function initToolbar() {
     e.target.value = '';
     if (!f) return;
     try {
+      if (/\.knxproj$/i.test(f.name)) {
+        const { importETS } = await import('./ets.js');
+        const { project, notes, stats } = await importETS(await f.arrayBuffer());
+        setProject(sanitize(JSON.parse(JSON.stringify(project))));
+        toast([`ETS-Projekt „${state.p.name}“ importiert: ${stats.devices} Geräte, ${stats.gas} Gruppenadressen.`, ...notes].join(' '));
+        return;
+      }
       setProject(sanitize(JSON.parse(await f.text())));
       toast(`„${state.p.name}“ geöffnet.`);
     } catch (err) {
-      toast(err.message.startsWith('Die Datei') ? err.message : 'Die Datei konnte nicht gelesen werden – ist es ein gespeichertes KNX-Topologie-Projekt?');
+      toast(/^(Die Datei|Das ETS|In der Datei|Im ETS|Unbekannte)/.test(err.message) ? err.message : 'Die Datei konnte nicht gelesen werden – ist es ein gespeichertes KNX-Topologie-Projekt?');
     }
   };
   const menu = $('#exportMenu');
